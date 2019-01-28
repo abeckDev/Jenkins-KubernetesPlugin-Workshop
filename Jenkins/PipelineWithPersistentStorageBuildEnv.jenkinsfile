@@ -23,7 +23,7 @@ spec:
             mountPath: /var/run/docker.sock
     volumes: # Defines Volumes
         - name: m2-data # Defines the volume for persisten maven Storage
-          persistenVolumeClaim:
+          persistentVolumeClaim:
             claimName: maven-build-data
         - name: docker-socket # Creates a Share wich enable Docker Socket in the Container
           hostPath:
