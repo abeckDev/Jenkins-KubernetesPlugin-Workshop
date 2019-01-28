@@ -1,0 +1,27 @@
+//Defines the Build Pod with Name MavenBuildEnv
+podTemplate(
+    label: 'MavenBuildEnv', 
+    cloud: 'kubernetes', 
+    containers: [
+        containerTemplate(
+            name: 'maven',
+            image: 'maven:3.3.9-jdk-8-alpine',
+            command: 'cat',
+            ttyEnabled: true,
+            workingDir: '/home/jenkins',
+        ), // End of first Container definition
+    ], // End of Containers/Pods Definition
+) // End of Pod Template 
+{
+node('MavenBuildEnv'){
+    stage('Checkout Source'){
+        git 'http://git-endpoint.default.svc.cluster.local/albec/SpringFramework-Petclinic.git'
+        echo "Done"
+    }
+    stage('Build App'){
+        container('maven'){
+            sh 'mvn -B clean package'
+        }
+    }
+  }
+}

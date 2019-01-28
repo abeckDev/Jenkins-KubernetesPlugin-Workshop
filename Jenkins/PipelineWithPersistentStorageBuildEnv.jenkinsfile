@@ -1,0 +1,46 @@
+//Define a custom Build Env with KubernetesFiles and persistent Storage
+def PersistenMavenBuildEnv = "BuildImage-${UUID.randomUUID().toString()}"
+podTemplate(
+    label: PersistenMavenBuildEnv, 
+    yaml: '''
+apiVersion: v1
+kind: Pod
+metadata:
+  name: persisten-maven-build-env
+spec:
+    containers: # Container definition inside of the Pod
+    - name: maven # Name of the Container
+      image: maven:latest # Image of the Container
+      imagePullPolicy: Always # Always pull Build Container because there might be updates
+      command: [ "/bin/bash" ] # Execute Bash
+      args: ["-c", 'run=1; while true; do echo "This is the $run run and I am still alive."; run=$((run+1)); sleep 3; done'] # A simple keepalive script to prevent the container from beeing closed and restarted.
+      securityContext:
+        runAsUser: 0 # Container will be run as user root (otherwise change user id)
+      volumeMounts: # Defines Mount points for a specific container
+          - name: m2-data # Mounts the persistent Maven Storage
+            mountPath: /root/.m2 # mount Endpoint in the Container
+          - name: docker-socket # Mounts the Docker Socket inside of the Container
+            mountPath: /var/run/docker.sock
+    volumes: # Defines Volumes
+        - name: m2-data # Defines the volume for persisten maven Storage
+          persistenVolumeClaim:
+            claimName: maven-build-data
+        - name: docker-socket # Creates a Share wich enable Docker Socket in the Container
+          hostPath:
+            path: /var/run/docker.sock # Path to Docker Socket
+            type: Socket # Type Socket
+'''
+) 
+{
+    node(PersistenMavenBuildEnv){ //Everythinh inside of this section will be run in the MavenBuildEnv which is created wenn entering the section by Kubernetes
+        stage('Checkout Source'){
+            git 'http://git-endpoint.default.svc.cluster.local/albec/SpringFramework-Petclinic.git'
+            echo "Done"
+        }
+        stage('Build App'){
+            container('maven'){
+                sh 'mvn -B clean package'
+            }
+        }
+    }
+}
