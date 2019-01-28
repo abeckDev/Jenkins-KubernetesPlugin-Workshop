@@ -13,15 +13,25 @@ podTemplate(
     ], // End of Containers/Pods Definition
 ) // End of Pod Template 
 {
-node('MavenBuildEnv'){
-    stage('Checkout Source'){
-        git 'http://git-endpoint.default.svc.cluster.local/albec/SpringFramework-Petclinic.git'
-        echo "Done"
-    }
-    stage('Build App'){
-        container('maven'){
-            sh 'mvn -B clean package'
+    node('MavenBuildEnv'){
+        stage('Checkout Source'){
+            git 'http://git-endpoint.default.svc.cluster.local/albec/SpringFramework-Petclinic.git'
+            echo "Done"
+        }
+        stage('Exec Tests'){
+            container('maven'){
+                sh 'mvn test'
+                junit keepLongStdio: true, testResults: '**/TEST*.xml'
+                archiveArtifacts artifacts: '**/TEST*.xml', onlyIfSuccessful: true
+            }
+        }
+        stage('Build App'){
+            container('maven'){
+                sh 'mvn -B clean package -DskipTests '
+            }
+        }
+        stage('Upload Artifacts'){
+            archiveArtifacts artifacts: '**/*.war', onlyIfSuccessful: true
         }
     }
-  }
 }

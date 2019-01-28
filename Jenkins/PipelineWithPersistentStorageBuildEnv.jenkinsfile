@@ -24,7 +24,7 @@ spec:
     volumes: # Defines Volumes
         - name: m2-data # Defines the volume for persisten maven Storage
           persistentVolumeClaim:
-            claimName: maven-build-data
+            claimName: build-dependencie-volume-claim
         - name: docker-socket # Creates a Share wich enable Docker Socket in the Container
           hostPath:
             path: /var/run/docker.sock # Path to Docker Socket
@@ -37,10 +37,20 @@ spec:
             git 'http://git-endpoint.default.svc.cluster.local/albec/SpringFramework-Petclinic.git'
             echo "Done"
         }
+        stage('Exec Tests'){
+            container('maven'){
+                sh 'mvn test'
+                junit keepLongStdio: true, testResults: '**/TEST*.xml'
+                archiveArtifacts artifacts: '**/TEST*.xml', onlyIfSuccessful: true
+            }
+        }
         stage('Build App'){
             container('maven'){
-                sh 'mvn -B clean package'
+                sh 'mvn -B clean package -DskipTests '
             }
+        }
+        stage('Upload Artifacts'){
+            archiveArtifacts artifacts: '**/*.war', onlyIfSuccessful: true
         }
     }
 }
