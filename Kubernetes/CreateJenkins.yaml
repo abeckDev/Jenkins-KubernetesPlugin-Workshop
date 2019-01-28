@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jenkins-persistent-storage-claim
+  annotations:
+    volume.beta.kubernetes.io/storage-class: azuredisk
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+---
+apiVersion: extensions/v1beta1 
+kind: Deployment
+metadata:
+  name: jenkins-server # Name of the Deployment
+spec:
+  replicas: 1
+  strategy: 
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: jenkins-server # Sets the Label for all Pods in this template - Via the Label Services, replications sets,... are identified
+    spec:
+      containers: # Container definition inside of the Pod
+      - name: jenkins # Name of the Container
+        image: jenkins/jenkins:lts # Image of the Container
+        resources:
+          limits:
+            memory: "8Gi"
+            cpu: "2"
+          requests:
+            memory: "3Gi"
+            cpu: "1"
+        ports:
+        - name: jenkinsweb
+          containerPort: 8080 
+        - name: k8splugin
+          containerPort: 50000
+        volumeMounts: # Defines Mount points for a specific container
+          - name: jenkins-data # Mounts the volume with the name jenkins-data (Will be defined later in this file)
+            mountPath: /var/jenkins_home # mount Endpoint in the Container
+        securityContext:
+          runAsUser: 0 # Container will be run as user root (otherwise change user id)
+      volumes: # Defines Volumes
+          - name: jenkins-data # Defines the volume jenkins-data
+            persistentVolumeClaim:
+              claimName: jenkins-persistent-storage-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-kubernetes-plugin-endpoint
+spec:
+  type: ClusterIP # Service will be only exposed to the internal cluster network
+  ports:
+    - name: kubernetesplugininterface
+      port: 50000
+      targetPort: 50000
+    - name: jenkinswebinterface
+      port: 80
+      targetPort: 8080
+  selector:
+    app: jenkins-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jenkins-webinterface-endpoint
+spec:
+  type: LoadBalancer # Service will be exposed to internet via Azure Loadbalancer and PublicIp
+  ports:
+    - name: jenkinswebinterface
+      port: 80
+      targetPort: 8080
+  selector:
+    app: jenkins-server
