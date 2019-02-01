@@ -26,7 +26,7 @@ A Workshop on HowTo Use Azure Kubernetes Service, Jenkins with Kubernetes Plugin
 
 ### Doing it the easy way
 
-### Increasing build time by using dependencie storag
+### Increasing build time by using dependencie storage
 
 ## Setting up Azure DevOps
 
