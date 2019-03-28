@@ -2,6 +2,7 @@
 podTemplate(
     label: 'MavenBuildEnv', 
     cloud: 'kubernetes', 
+    podRetention: never(),
     containers: [
         containerTemplate(
             name: 'maven',

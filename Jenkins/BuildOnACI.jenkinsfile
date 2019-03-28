@@ -1,0 +1,68 @@
+//Define a custom Build Env with KubernetesFiles and persistent Storage
+
+def PersistenMavenBuildEnv = "BuildImage-${UUID.randomUUID().toString()}"
+
+podTemplate(
+
+    cloud: "aci",
+
+    label: PersistenMavenBuildEnv, 
+
+    yaml: '''
+apiVersion: v1
+kind: Pod
+metadata:
+  name: persisten-maven-build-env
+spec:
+    containers: # Container definition inside of the Pod
+    - name: maven # Name of the Container
+      image: maven:latest # Image of the Container
+      imagePullPolicy: Always # Always pull Build Container because there might be updates
+      command: [ "/bin/bash" ] # Execute Bash
+      args: ["-c", 'run=1; while true; do echo "This is the $run run and I am still alive."; run=$((run+1)); sleep 3; done'] # A simple keepalive script to prevent the container from beeing closed and restarted.
+      securityContext:
+        runAsUser: 0 # Container will be run as user root (otherwise change user id)
+    nodeSelector:
+        kubernetes.io/role: agent
+        beta.kubernetes.io/os: linux
+        type: virtual-kubelet
+    tolerations:
+    - key: "virtual-kubelet.io/provider"
+      operator: Equal
+      value: "azure"
+'''
+
+) 
+
+{
+
+    node(PersistenMavenBuildEnv){ //Everythinh inside of this section will be run in the MavenBuildEnv which is created wenn entering the section by Kubernetes
+
+        stage('Checkout Source'){
+
+            git 'https://github.com/spring-petclinic/spring-framework-petclinic.git'
+
+            echo "Done"
+
+        }
+
+        
+        stage('Build App'){
+
+            container('maven'){
+
+                sh 'mvn -B clean package -DskipTests '
+
+            }
+
+        }
+
+        stage('Upload Artifacts'){
+
+            archiveArtifacts artifacts: '**/*.war', onlyIfSuccessful: true
+
+        }
+
+    }
+
+}
